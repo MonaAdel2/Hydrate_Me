@@ -22,9 +22,23 @@ import android.Manifest
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
+    private val sharedPreferencesKey = "water_tracker"
+    val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name =sharedPreferencesKey)
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
 
@@ -33,14 +47,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnCancelDialog: Button
     private lateinit var etTargetDialog: TextInputLayout
 
-    private val sharedPreferencesKey = "water_tracker"
-    private val waterIntakeKey = "water_intake"
-    private val waterGoalKey = "water_goal"
-    private val isNotifiedKey = "apply_notification"
-
     private var waterIntake = 0
     private var waterGoal = 3200
     private var isNotified = false
+
+    val WATERINTAKEKEY = intPreferencesKey("water_intake")
+    val WATERGOALKEY = intPreferencesKey("water_goal")
+    val ISNOTIFIEDKEY = booleanPreferencesKey("apply_notification")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,16 +61,23 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // load Data from dataStore
+        loadDataFromDataStore()
 
         val activityLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()){ isGranted->
             if ((isGranted)) {
                 binding.btnNotify.isChecked = true
-                Toast.makeText(this, "the permission is allowed", Toast.LENGTH_SHORT).show()
+                isNotified = true
+//                Toast.makeText(this, "the permission is allowed", Toast.LENGTH_SHORT).show()
                 scheduleHourlyReminder()
             }else{
                 binding.btnNotify.isChecked = false
+                isNotified = false
                 cancelHourlyReminder()
                 Toast.makeText(this, "You can't receive reminders unless you allow the app to send notifications.", Toast.LENGTH_SHORT).show()
+            }
+            launch {
+                saveNotificationState()
             }
 
         }
@@ -65,27 +85,23 @@ class MainActivity : AppCompatActivity() {
         scheduleDailyReset()
 
         editDialog = Dialog(this)
-        
-        // Load data from SharedPreferences
-        val sharedPreferences = getSharedPreferences(sharedPreferencesKey, Context.MODE_PRIVATE)
-        waterIntake = sharedPreferences.getInt(waterIntakeKey, 0)
-        waterGoal = sharedPreferences.getInt(waterGoalKey, 3200)
 
-        isNotified = sharedPreferences.getBoolean(isNotifiedKey, false)
-        binding.btnNotify.isChecked = isNotified
-
-        updateProgress()
 
         binding.btnAddWater.setOnClickListener {
             waterIntake += 250 // Assuming a 250ml cup
             updateProgress()
-            saveData()
+            launch {
+                saveDataToDataStore()
+            }
+            
         }
 
         binding.btnRemoveWater.setOnClickListener {
             waterIntake -= 250
             updateProgress()
-            saveData()
+            launch {
+                saveDataToDataStore()
+            }
         }
 
         binding.btnNotify.setOnCheckedChangeListener { buttonView, isChecked ->
@@ -94,9 +110,10 @@ class MainActivity : AppCompatActivity() {
                     ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                             == PackageManager.PERMISSION_GRANTED ->{
 
-                        Toast.makeText(this, "The reminders will be sent.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "The reminders will be sent per hour.", Toast.LENGTH_SHORT).show()
                         Log.d(TAG, "onCreate: the permission is on")
                         scheduleHourlyReminder()
+                        isNotified = true
                     }
 
                     else ->{
@@ -104,7 +121,6 @@ class MainActivity : AppCompatActivity() {
                             activityLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             Log.d(TAG, "onCreate: the request is sent to the user")
                             isNotified = true
-                            saveNotificationState()
                         }
                     }
                 }
@@ -112,6 +128,11 @@ class MainActivity : AppCompatActivity() {
             else{
                 Log.d(TAG, "onCreate: the check button is not checked.")
                 cancelHourlyReminder()
+                isNotified = false
+            }
+
+            launch {
+                saveNotificationState()
             }
         }
 
@@ -119,8 +140,17 @@ class MainActivity : AppCompatActivity() {
             createDialog()
             showDialog()
         }
+        
     }
 
+    private suspend fun saveDataToDataStore() {
+        dataStore.edit { preferences ->
+            preferences[WATERINTAKEKEY] = waterIntake
+            preferences[WATERGOALKEY] = waterGoal
+            preferences[ISNOTIFIEDKEY] = isNotified
+            Log.d(TAG, "saveDataToDataStore: waterIntake-> ${ preferences[WATERINTAKEKEY]} \n waterGoal -> ${preferences[WATERGOALKEY]} \n isNotified -> ${ preferences[ISNOTIFIEDKEY]}")
+        }
+    }
 
     private fun createDialog() {
         val dialogView = layoutInflater.inflate(R.layout.edit_dialog, null)
@@ -141,9 +171,11 @@ class MainActivity : AppCompatActivity() {
 
             if (!newTarget.isNullOrEmpty()) {
                 waterGoal = newTarget.toInt()
-                saveData()
                 updateProgress()
-//                binding.progressBar.progressMax = waterGoal.toFloat()
+                launch {
+                    saveDataToDataStore()
+                }
+
                 Log.d(TAG, "createDialog: the max progress is ${ binding.progressBar.progressMax}")
                 dismissDialog()
             } else {
@@ -154,6 +186,49 @@ class MainActivity : AppCompatActivity() {
         btnCancelDialog.setOnClickListener {
             dismissDialog()
         }
+    }
+
+    private fun loadDataFromDataStore(){
+        val waterIntakeFlow: Flow<Int> = dataStore.data
+            .map { preferences ->
+                preferences[WATERINTAKEKEY] ?: 0
+            }
+
+        val waterGoalFlow: Flow<Int> = dataStore.data
+            .map { preferences ->
+                preferences[WATERGOALKEY] ?: 3200
+            }
+
+        val isNotifiedFlow: Flow<Boolean> = dataStore.data
+            .map { preferences ->
+                preferences[ISNOTIFIEDKEY] ?: false
+            }
+
+        launch {
+            waterIntakeFlow.collect { value ->
+                waterIntake = value
+                updateProgress()
+                Log.d(TAG, "Collected value for water intake: $waterIntake")
+            }
+
+        }
+        launch {
+            waterGoalFlow.collect { value ->
+                waterGoal = value
+                updateProgress()
+                Log.d(TAG, "Collected value for gaol: $waterGoal")
+            }
+        }
+        launch {
+            isNotifiedFlow.collect { value ->
+                isNotified = value
+                updateNotificationCheck()
+                Log.d(TAG, "Collected value for notification: $isNotified")
+            }
+        }
+
+        binding.btnNotify.isChecked = isNotified
+        updateProgress()
     }
 
     private fun showDialog(){
@@ -171,20 +246,15 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "updateProgress: ${progress}")
         binding.tvWaterIntake.text = "$waterIntake / ${waterGoal} ml"
     }
-
-    private fun saveData() {
-        val sharedPreferences = getSharedPreferences(sharedPreferencesKey, Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putInt(waterIntakeKey, waterIntake)
-        editor.putInt(waterGoalKey, waterGoal)
-        editor.apply()
+    private fun updateNotificationCheck(){
+        binding.btnNotify.isChecked = isNotified
     }
 
-    private fun saveNotificationState(){
-        val sharedPreferences = getSharedPreferences(sharedPreferencesKey, Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putBoolean(isNotifiedKey, isNotified)
-        editor.apply()
+    private suspend fun saveNotificationState(){
+        dataStore.edit { preferences ->
+            preferences[ISNOTIFIEDKEY] = isNotified
+            Log.d(TAG, "saveDataToDataStore: \n isNotified -> ${ preferences[ISNOTIFIEDKEY]}")
+        }
     }
 
     private fun scheduleHourlyReminder() {
@@ -208,12 +278,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Schedule the alarm to repeat every hour
-//        alarmManager.setRepeating(
-//            AlarmManager.RTC_WAKEUP,
-//            calendar.timeInMillis,
-//            AlarmManager.INTERVAL_HOUR,
-//            pendingIntent
-//        )
+        alarmManager.setRepeating(
+            AlarmManager.RTC_WAKEUP,
+            calendar.timeInMillis,
+            AlarmManager.INTERVAL_HOUR,
+            pendingIntent
+        )
         alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
             calendar.timeInMillis,
