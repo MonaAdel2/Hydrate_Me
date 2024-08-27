@@ -19,15 +19,22 @@ import com.google.android.material.textfield.TextInputLayout
 import com.mona.adel.hydrateme.databinding.ActivityMainBinding
 import java.util.Calendar
 import android.Manifest
+import android.content.SharedPreferences
 import android.os.Build
+import android.provider.Settings
+import android.widget.FrameLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.coroutineScope
@@ -37,15 +44,19 @@ import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
-    private val sharedPreferencesKey = "water_tracker"
-    val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name =sharedPreferencesKey)
+    private val dataStore by lazy {
+        (application as MyApp).dataStore
+    }
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
 
-    private lateinit var editDialog: Dialog
+    private val CHANNEL_ID = "Hydrate Me Reminder_"
+
+    private lateinit var settingsDialog: Dialog
     private lateinit var btnOkDialog: Button
-    private lateinit var btnCancelDialog: Button
     private lateinit var etTargetDialog: TextInputLayout
+    private lateinit var tvSettingsDialog: TextView
+    private lateinit var btnSwitchModeDialog: MaterialSwitch
 
     private var waterIntake = 0
     private var waterGoal = 3200
@@ -55,11 +66,18 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
     val WATERGOALKEY = intPreferencesKey("water_goal")
     val ISNOTIFIEDKEY = booleanPreferencesKey("apply_notification")
 
+    private lateinit var sharedPreferences: SharedPreferences
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Load saved theme preference
+        sharedPreferences = getSharedPreferences("modes", MODE_PRIVATE)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
 
         // load Data from dataStore
         loadDataFromDataStore()
@@ -68,7 +86,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             if ((isGranted)) {
                 binding.btnNotify.isChecked = true
                 isNotified = true
-//                Toast.makeText(this, "the permission is allowed", Toast.LENGTH_SHORT).show()
                 scheduleHourlyReminder()
             }else{
                 binding.btnNotify.isChecked = false
@@ -84,7 +101,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
         scheduleDailyReset()
 
-        editDialog = Dialog(this)
+        settingsDialog = Dialog(this)
 
 
         binding.btnAddWater.setOnClickListener {
@@ -110,7 +127,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
                     ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
                             == PackageManager.PERMISSION_GRANTED ->{
 
-                        Toast.makeText(this, "The reminders will be sent per hour.", Toast.LENGTH_SHORT).show()
                         Log.d(TAG, "onCreate: the permission is on")
                         scheduleHourlyReminder()
                         isNotified = true
@@ -136,11 +152,23 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             }
         }
 
-        binding.btnEditTarget.setOnClickListener {
+        binding.btnSettings.setOnClickListener {
             createDialog()
-            showDialog()
+            settingsDialog.show()
         }
         
+    }
+
+    private fun goToNotificationSettings(){
+        Log.d(TAG, "goToNotificationSettings: suppose to go")
+        val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_ID)
+            Log.d(TAG, "goToNotificationSettings: within apply")
+            Log.d(TAG, "goToNotificationSettings: ${CHANNEL_ID}")
+        }
+        startActivity(intent)
+        Log.d(TAG, "goToNotificationSettings: function ends")
     }
 
     private suspend fun saveDataToDataStore() {
@@ -152,18 +180,23 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         }
     }
 
+    @SuppressLint("MissingInflatedId")
     private fun createDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.edit_dialog, null)
+        val dialogView = layoutInflater.inflate(R.layout.settings_layout, null)
 
         // Initialize the dialog's views
-        btnOkDialog = dialogView.findViewById(R.id.btn_ok_edit_target)
-        btnCancelDialog = dialogView.findViewById(R.id.btn_cancel_edit_target)
-        etTargetDialog = dialogView.findViewById(R.id.et_target_edit)
+        btnOkDialog = dialogView.findViewById(R.id.btn_ok_edit_target_)
+        etTargetDialog = dialogView.findViewById(R.id.et_target_edit_)
+        tvSettingsDialog = dialogView.findViewById(R.id.tv_settings)
+        btnSwitchModeDialog = dialogView.findViewById(R.id.switch_mode_btn)
+
+
 
         // Set the dialog view and properties
-        editDialog.setContentView(dialogView)
-        editDialog.setCancelable(false)
-        editDialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        settingsDialog.setContentView(dialogView)
+        settingsDialog.setCancelable(true)
+        settingsDialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
 
         // Set up listeners for dialog buttons
         btnOkDialog.setOnClickListener {
@@ -177,15 +210,22 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
                 }
 
                 Log.d(TAG, "createDialog: the max progress is ${ binding.progressBar.progressMax}")
-                dismissDialog()
+                settingsDialog.dismiss()
             } else {
                 etTargetDialog.error = "Please enter a value for your target."
             }
         }
+        tvSettingsDialog.setOnClickListener {
+            goToNotificationSettings()
 
-        btnCancelDialog.setOnClickListener {
-            dismissDialog()
         }
+
+        btnSwitchModeDialog.setOnClickListener {
+//            switchMode(btnSwitchModeDialog.isChecked)
+
+        }
+
+
     }
 
     private fun loadDataFromDataStore(){
@@ -203,6 +243,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             .map { preferences ->
                 preferences[ISNOTIFIEDKEY] ?: false
             }
+
 
         launch {
             waterIntakeFlow.collect { value ->
@@ -231,14 +272,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         updateProgress()
     }
 
-    private fun showDialog(){
-        editDialog.show()
-    }
-
-
-    private fun dismissDialog(){
-        editDialog.dismiss()
-    }
 
     private fun updateProgress() {
         val progress = (waterIntake * 100) / waterGoal
@@ -246,6 +279,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         Log.d(TAG, "updateProgress: ${progress}")
         binding.tvWaterIntake.text = "$waterIntake / ${waterGoal} ml"
     }
+
     private fun updateNotificationCheck(){
         binding.btnNotify.isChecked = isNotified
     }
@@ -331,9 +365,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             pendingIntent
         )
     }
-
-
-
 
 }
 
