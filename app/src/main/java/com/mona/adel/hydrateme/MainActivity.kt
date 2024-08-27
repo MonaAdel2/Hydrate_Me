@@ -50,14 +50,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
     private lateinit var binding: ActivityMainBinding
     private val TAG = "MainActivity"
 
-    private val CHANNEL_ID = "Hydrate Me Reminder_"
-
-    private lateinit var settingsDialog: Dialog
-    private lateinit var btnOkDialog: Button
-    private lateinit var etTargetDialog: TextInputLayout
-    private lateinit var tvSettingsDialog: TextView
-    private lateinit var btnSwitchModeDialog: MaterialSwitch
-
     private var waterIntake = 0
     private var waterGoal = 3200
     private var isNotified = false
@@ -67,17 +59,27 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
     val ISNOTIFIEDKEY = booleanPreferencesKey("apply_notification")
 
     private lateinit var sharedPreferences: SharedPreferences
+    private val IS_DARK_THEME_KEY = "dark_theme"
+    private var isDarkTheme = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Load saved theme preference
-        sharedPreferences = getSharedPreferences("modes", MODE_PRIVATE)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        Log.d(TAG, "onCreate: ")
 
+        // Load saved theme preference
+        sharedPreferences = getSharedPreferences("AppModes", MODE_PRIVATE)
+        isDarkTheme = sharedPreferences.getBoolean(IS_DARK_THEME_KEY, false)
+
+        if (isDarkTheme){
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+            Log.d(TAG, "onCreate: it is a dark mode")
+        }else{
+            Log.d(TAG, "onCreate: it is a light mode")
+        }
 
         // load Data from dataStore
         loadDataFromDataStore()
@@ -98,11 +100,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             }
 
         }
-
         scheduleDailyReset()
-
-        settingsDialog = Dialog(this)
-
 
         binding.btnAddWater.setOnClickListener {
             waterIntake += 250 // Assuming a 250ml cup
@@ -153,81 +151,18 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         }
 
         binding.btnSettings.setOnClickListener {
-            createDialog()
-            settingsDialog.show()
+            startActivity(Intent(this, SettingsActivity::class.java))
+
         }
         
     }
 
-    private fun goToNotificationSettings(){
-        Log.d(TAG, "goToNotificationSettings: suppose to go")
-        val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-            putExtra(Settings.EXTRA_CHANNEL_ID, CHANNEL_ID)
-            Log.d(TAG, "goToNotificationSettings: within apply")
-            Log.d(TAG, "goToNotificationSettings: ${CHANNEL_ID}")
-        }
-        startActivity(intent)
-        Log.d(TAG, "goToNotificationSettings: function ends")
-    }
 
     private suspend fun saveDataToDataStore() {
         dataStore.edit { preferences ->
             preferences[WATERINTAKEKEY] = waterIntake
-            preferences[WATERGOALKEY] = waterGoal
-            preferences[ISNOTIFIEDKEY] = isNotified
-            Log.d(TAG, "saveDataToDataStore: waterIntake-> ${ preferences[WATERINTAKEKEY]} \n waterGoal -> ${preferences[WATERGOALKEY]} \n isNotified -> ${ preferences[ISNOTIFIEDKEY]}")
         }
     }
-
-    @SuppressLint("MissingInflatedId")
-    private fun createDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.settings_layout, null)
-
-        // Initialize the dialog's views
-        btnOkDialog = dialogView.findViewById(R.id.btn_ok_edit_target_)
-        etTargetDialog = dialogView.findViewById(R.id.et_target_edit_)
-        tvSettingsDialog = dialogView.findViewById(R.id.tv_settings)
-        btnSwitchModeDialog = dialogView.findViewById(R.id.switch_mode_btn)
-
-
-
-        // Set the dialog view and properties
-        settingsDialog.setContentView(dialogView)
-        settingsDialog.setCancelable(true)
-        settingsDialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-
-        // Set up listeners for dialog buttons
-        btnOkDialog.setOnClickListener {
-            val newTarget = etTargetDialog.editText?.text.toString()
-
-            if (!newTarget.isNullOrEmpty()) {
-                waterGoal = newTarget.toInt()
-                updateProgress()
-                launch {
-                    saveDataToDataStore()
-                }
-
-                Log.d(TAG, "createDialog: the max progress is ${ binding.progressBar.progressMax}")
-                settingsDialog.dismiss()
-            } else {
-                etTargetDialog.error = "Please enter a value for your target."
-            }
-        }
-        tvSettingsDialog.setOnClickListener {
-            goToNotificationSettings()
-
-        }
-
-        btnSwitchModeDialog.setOnClickListener {
-//            switchMode(btnSwitchModeDialog.isChecked)
-
-        }
-
-
-    }
-
     private fun loadDataFromDataStore(){
         val waterIntakeFlow: Flow<Int> = dataStore.data
             .map { preferences ->
@@ -301,13 +236,15 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         // Set the alarm to start at the next hour
         val calendar = Calendar.getInstance().apply {
             timeInMillis = System.currentTimeMillis()
-//            set(Calendar.MINUTE, 0)
-//            set(Calendar.SECOND, 0)
-//            set(Calendar.MILLISECOND, 0)
-//            add(Calendar.HOUR_OF_DAY, 1)
+            set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
-            add(Calendar.MINUTE, 1)
+            add(Calendar.HOUR_OF_DAY, 1)
+
+            // notification every minute
+//            set(Calendar.SECOND, 0)
+//            set(Calendar.MILLISECOND, 0)
+//            add(Calendar.MINUTE, 1)
 
         }
 
@@ -318,12 +255,12 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             AlarmManager.INTERVAL_HOUR,
             pendingIntent
         )
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            60 * 1000, // 1 minute interval
-            pendingIntent
-        )
+//        alarmManager.setRepeating(
+//            AlarmManager.RTC_WAKEUP,
+//            calendar.timeInMillis,
+//            60 * 1000, // 1 minute interval
+//            pendingIntent
+//        )
     }
 
     private fun cancelHourlyReminder() {

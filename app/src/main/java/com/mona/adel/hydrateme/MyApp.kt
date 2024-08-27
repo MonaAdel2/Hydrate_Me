@@ -10,6 +10,7 @@ import java.io.File
 class MyApp: Application() {
     private val datsStoredPreferencesKey = "water_tracker"
 
+
     val dataStore: DataStore<Preferences> by lazy {
         createDataStore(datsStoredPreferencesKey)
     }
@@ -22,7 +23,7 @@ class MyApp: Application() {
 
     companion object {
         lateinit var instance: MyApp
-
+        val NOTIFICATION_CHANNEl_ID = "notification_channel"
     }
 
     override fun onCreate() {

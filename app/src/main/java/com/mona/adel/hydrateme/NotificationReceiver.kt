@@ -20,7 +20,7 @@ import androidx.core.content.ContextCompat.getSystemService
 class NotificationReceiver : BroadcastReceiver() {
 
     private val TAG = "NotificationReceiver"
-    private val CHANNEL_ID = "Hydrate Me Reminder_"
+    private val CHANNEL_ID = MyApp.NOTIFICATION_CHANNEl_ID
     private val NOTIFICATION_ID = 1
 
     override fun onReceive(context: Context, intent: Intent) {
