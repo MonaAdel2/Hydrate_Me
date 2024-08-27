@@ -1,5 +1,6 @@
 package com.mona.adel.hydrateme
 
+import ResetReceiver
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -25,6 +26,7 @@ import android.provider.Settings
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.datastore.core.DataStore
@@ -48,6 +50,9 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         (application as MyApp).dataStore
     }
     private lateinit var binding: ActivityMainBinding
+
+    private lateinit var activityLauncher: ActivityResultLauncher<String>
+
     private val TAG = "MainActivity"
 
     private var waterIntake = 0
@@ -68,7 +73,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        Log.d(TAG, "onCreate: ")
 
         // Load saved theme preference
         sharedPreferences = getSharedPreferences("AppModes", MODE_PRIVATE)
@@ -84,12 +88,13 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         // load Data from dataStore
         loadDataFromDataStore()
 
-        val activityLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()){ isGranted->
-            if ((isGranted)) {
+        // Register the ActivityResultLauncher in onCreate
+        activityLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
                 binding.btnNotify.isChecked = true
                 isNotified = true
                 scheduleHourlyReminder()
-            }else{
+            } else {
                 binding.btnNotify.isChecked = false
                 isNotified = false
                 cancelHourlyReminder()
@@ -98,8 +103,8 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             launch {
                 saveNotificationState()
             }
-
         }
+
         scheduleDailyReset()
 
         binding.btnAddWater.setOnClickListener {
@@ -108,7 +113,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             launch {
                 saveDataToDataStore()
             }
-            
+
         }
 
         binding.btnRemoveWater.setOnClickListener {
