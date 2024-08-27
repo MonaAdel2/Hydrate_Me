@@ -1,21 +1,33 @@
-package com.mona.adel.hydrateme
-
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-class ResetReceiver:BroadcastReceiver() {
+class ResetReceiver : BroadcastReceiver() {
 
-    private val waterIntakeKey = "water_intake"
-    private val sharedPreferencesKey = "water_tracker"
-
-    override fun onReceive(context: Context?, intent: Intent?) {
-        val sharedPreferences = context?.getSharedPreferences(sharedPreferencesKey, Context.MODE_PRIVATE)
-        val editor = sharedPreferences?.edit()
-        editor?.putInt(waterIntakeKey, 0) // Reset water intake to 0
-        editor?.apply()
-
+    companion object {
+        val Context.dataStore by preferencesDataStore(name = "settings")
     }
 
+    private val WATERINTAKEKEY = intPreferencesKey("water_intake")
 
+    override fun onReceive(context: Context?, intent: Intent?) {
+        context?.let {
+            // Call the reset function within a coroutine
+            CoroutineScope(Dispatchers.IO).launch {
+                resetWaterIntakeLevel(it)
+            }
+        }
+    }
+
+    private suspend fun resetWaterIntakeLevel(context: Context) {
+        context.dataStore.edit { preferences ->
+            preferences[WATERINTAKEKEY] = 0
+        }
+    }
 }
