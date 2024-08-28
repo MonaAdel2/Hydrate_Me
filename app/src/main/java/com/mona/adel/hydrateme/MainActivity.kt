@@ -35,6 +35,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.airbnb.lottie.LottieAnimationView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.CoroutineScope
@@ -66,7 +67,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
     private lateinit var sharedPreferences: SharedPreferences
     private val IS_DARK_THEME_KEY = "dark_theme"
     private var isDarkTheme = false
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,6 +110,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         binding.btnAddWater.setOnClickListener {
             waterIntake += 250 // Assuming a 250ml cup
             updateProgress()
+            checkAndAnimateGoal()
             launch {
                 saveDataToDataStore()
             }
@@ -246,11 +247,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             set(Calendar.MILLISECOND, 0)
             add(Calendar.HOUR_OF_DAY, 1)
 
-            // notification every minute
-//            set(Calendar.SECOND, 0)
-//            set(Calendar.MILLISECOND, 0)
-//            add(Calendar.MINUTE, 1)
-
         }
 
         // Schedule the alarm to repeat every hour
@@ -260,12 +256,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             AlarmManager.INTERVAL_HOUR,
             pendingIntent
         )
-//        alarmManager.setRepeating(
-//            AlarmManager.RTC_WAKEUP,
-//            calendar.timeInMillis,
-//            60 * 1000, // 1 minute interval
-//            pendingIntent
-//        )
     }
 
     private fun cancelHourlyReminder() {
@@ -306,6 +296,18 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             AlarmManager.INTERVAL_DAY,
             pendingIntent
         )
+    }
+
+    private fun checkAndAnimateGoal() {
+        if (waterIntake >= waterGoal ) {
+            val animationView = findViewById<LottieAnimationView>(R.id.animationView)
+
+            // Play animation
+            animationView.playAnimation()
+
+            // Show a message to the user
+            Toast.makeText(this, "Goal reached! Great job!", Toast.LENGTH_SHORT).show()
+        }
     }
 
 }
