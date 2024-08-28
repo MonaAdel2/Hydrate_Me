@@ -55,4 +55,7 @@ dependencies {
     // DataStore
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.datastore.preferences.core)
+
+    // lottie
+    implementation (libs.lottie)
 }
