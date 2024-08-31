@@ -7,7 +7,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import java.io.File
 
-class MyApp: Application() {
+class MyApp : Application() {
     private val datsStoredPreferencesKey = "water_tracker"
 
 

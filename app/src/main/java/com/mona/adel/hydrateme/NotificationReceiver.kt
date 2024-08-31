@@ -1,8 +1,6 @@
 package com.mona.adel.hydrateme
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -11,11 +9,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat.getSystemService
 
 class NotificationReceiver : BroadcastReceiver() {
 
@@ -30,7 +26,10 @@ class NotificationReceiver : BroadcastReceiver() {
         }
 
         val actionPendingIntent = PendingIntent.getActivity(
-            context, 0, actionIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            context,
+            0,
+            actionIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         showNotification(
@@ -42,7 +41,12 @@ class NotificationReceiver : BroadcastReceiver() {
     }
 
 
-    private fun showNotification(context: Context, title: String, message: String, actionPendingIntent: PendingIntent) {
+    private fun showNotification(
+        context: Context,
+        title: String,
+        message: String,
+        actionPendingIntent: PendingIntent
+    ) {
 
         // Create NotificationChannel for devices running Android O and above
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

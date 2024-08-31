@@ -5,23 +5,16 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import com.mona.adel.hydrateme.databinding.ActivityMainBinding
 import com.mona.adel.hydrateme.databinding.ActivitySettingsBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-class SettingsActivity : AppCompatActivity() , CoroutineScope by MainScope() {
+class SettingsActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private val dataStore by lazy {
         (application as MyApp).dataStore
@@ -50,23 +43,23 @@ class SettingsActivity : AppCompatActivity() , CoroutineScope by MainScope() {
         binding.switchModeBtn.isChecked = isDarkTheme
 
 
-        if (isDarkTheme){
+        if (isDarkTheme) {
             binding.switchModeBtn.isChecked = true
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
             Log.d(TAG, "onCreate: it is a dark mode")
-        }else{
+        } else {
             binding.switchModeBtn.isChecked = false
             Log.d(TAG, "onCreate: it is a light mode")
         }
 
 
         binding.switchModeBtn.setOnCheckedChangeListener { buttonView, isChecked ->
-            if (isChecked){
+            if (isChecked) {
                 binding.switchModeBtn.isChecked = true
                 sharedPreferences.edit().putBoolean(IS_DARK_THEME_KEY, true).apply()
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
                 Log.d(TAG, "onCreate: it is a dark mode00")
-            }else{
+            } else {
                 binding.switchModeBtn.isChecked = false
                 sharedPreferences.edit().putBoolean(IS_DARK_THEME_KEY, false).apply()
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
@@ -96,7 +89,8 @@ class SettingsActivity : AppCompatActivity() , CoroutineScope by MainScope() {
         }
 
     }
-    private fun goToNotificationSettings(){
+
+    private fun goToNotificationSettings() {
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
             putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
             putExtra(Settings.EXTRA_CHANNEL_ID, MyApp.NOTIFICATION_CHANNEl_ID)
