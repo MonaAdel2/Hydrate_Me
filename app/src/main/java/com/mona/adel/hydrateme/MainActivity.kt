@@ -53,7 +53,6 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     private val IS_DARK_THEME_KEY = "dark_theme"
     private var isDarkTheme = false
     private val LAST_LOGGED_DATE = "last_logged_date"
-    private var lastLoggedDate: String? = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -145,6 +144,12 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
             launch {
                 saveNotificationState()
+            }
+        }
+
+        binding.btnNotify.setOnClickListener {
+            if (binding.btnNotify.isChecked){
+                Toast.makeText(this, "You will receive an hourly reminder.", Toast.LENGTH_SHORT).show()
             }
         }
 
