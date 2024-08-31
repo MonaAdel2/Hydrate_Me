@@ -1,6 +1,5 @@
 package com.mona.adel.hydrateme
 
-import ResetReceiver
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -44,6 +43,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
@@ -67,6 +69,8 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
     private lateinit var sharedPreferences: SharedPreferences
     private val IS_DARK_THEME_KEY = "dark_theme"
     private var isDarkTheme = false
+    private val LAST_LOGGED_DATE = "last_logged_date"
+    private var lastLoggedDate: String? = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +81,8 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         // Load saved theme preference
         sharedPreferences = getSharedPreferences("AppModes", MODE_PRIVATE)
         isDarkTheme = sharedPreferences.getBoolean(IS_DARK_THEME_KEY, false)
+
+        sharedPreferences.edit().putString(LAST_LOGGED_DATE, getCurrentDate()).apply()
 
         if (isDarkTheme){
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -105,7 +111,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             }
         }
 
-        scheduleDailyReset()
 
         binding.btnAddWater.setOnClickListener {
             waterIntake += 250 // Assuming a 250ml cup
@@ -272,31 +277,6 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         pendingIntent.cancel()
     }
 
-    private fun scheduleDailyReset() {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, ResetReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 1, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        // Set the alarm to trigger at midnight every day
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = System.currentTimeMillis()
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            add(Calendar.DAY_OF_MONTH, 1)
-        }
-
-        // Schedule the alarm to repeat daily
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            calendar.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pendingIntent
-        )
-    }
 
     private fun checkAndAnimateGoal() {
         if (waterIntake >= waterGoal ) {
@@ -307,6 +287,50 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
             // Show a message to the user
             Toast.makeText(this, "Goal reached! Great job!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private suspend fun resetTotal(){
+        Log.d("TAG", "resetTotal: the value returned from the checkIsToday is ${checkIsToday()}")
+        if (!checkIsToday()){
+            Log.d("TAG", "resetTotal: the value is not false")
+            dataStore.edit { preferences ->
+                preferences[WATERINTAKEKEY] = 0
+            }
+        }
+
+
+    }
+    private fun checkIsToday(): Boolean {
+        val currentDate = getCurrentDate()
+        Log.d("TAG", "checkIsToday: current date is $currentDate")
+        // get the last logged date
+        val lastDate = sharedPreferences.getString(LAST_LOGGED_DATE, "")
+        Log.d("TAG", "checkIsToday: last logged date from shared preferences is $lastDate")
+
+        // compare between two dates
+        if (currentDate != lastDate){
+            return false
+        }else{
+            return true
+        }
+
+    }
+
+    private fun getCurrentDate():String?{
+        val current = LocalDateTime.now()
+
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val formatted = current.format(formatter)
+
+        return formatted
+    }
+
+
+    override fun onResume() {
+        super.onResume()
+        launch {
+            resetTotal()
         }
     }
 
