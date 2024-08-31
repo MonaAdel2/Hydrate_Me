@@ -1,53 +1,36 @@
 package com.mona.adel.hydrateme
 
+import android.Manifest
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import android.annotation.SuppressLint
-import android.app.AlarmManager
-import android.app.Dialog
-import android.content.pm.PackageManager
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.util.Log
-import android.widget.Button
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.google.android.material.textfield.TextInputLayout
-import com.mona.adel.hydrateme.databinding.ActivityMainBinding
-import java.util.Calendar
-import android.Manifest
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.os.Build
-import android.provider.Settings
-import android.widget.FrameLayout
-import android.widget.TextView
+import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
+import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import com.airbnb.lottie.LottieAnimationView
-import com.google.android.material.bottomsheet.BottomSheetBehavior
-import com.google.android.material.materialswitch.MaterialSwitch
+import com.mona.adel.hydrateme.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
 
-class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
+class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private val dataStore by lazy {
         (application as MyApp).dataStore
@@ -84,10 +67,10 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
         sharedPreferences.edit().putString(LAST_LOGGED_DATE, getCurrentDate()).apply()
 
-        if (isDarkTheme){
+        if (isDarkTheme) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
             Log.d(TAG, "onCreate: it is a dark mode")
-        }else{
+        } else {
             Log.d(TAG, "onCreate: it is a light mode")
         }
 
@@ -95,21 +78,26 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         loadDataFromDataStore()
 
         // Register the ActivityResultLauncher in onCreate
-        activityLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                binding.btnNotify.isChecked = true
-                isNotified = true
-                scheduleHourlyReminder()
-            } else {
-                binding.btnNotify.isChecked = false
-                isNotified = false
-                cancelHourlyReminder()
-                Toast.makeText(this, "You can't receive reminders unless you allow the app to send notifications.", Toast.LENGTH_SHORT).show()
+        activityLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    binding.btnNotify.isChecked = true
+                    isNotified = true
+                    scheduleHourlyReminder()
+                } else {
+                    binding.btnNotify.isChecked = false
+                    isNotified = false
+                    cancelHourlyReminder()
+                    Toast.makeText(
+                        this,
+                        "You can't receive reminders unless you allow the app to send notifications.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                launch {
+                    saveNotificationState()
+                }
             }
-            launch {
-                saveNotificationState()
-            }
-        }
 
 
         binding.btnAddWater.setOnClickListener {
@@ -131,17 +119,17 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         }
 
         binding.btnNotify.setOnCheckedChangeListener { buttonView, isChecked ->
-            if (isChecked){
-                when{
+            if (isChecked) {
+                when {
                     ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                            == PackageManager.PERMISSION_GRANTED ->{
+                            == PackageManager.PERMISSION_GRANTED -> {
 
                         Log.d(TAG, "onCreate: the permission is on")
                         scheduleHourlyReminder()
                         isNotified = true
                     }
 
-                    else ->{
+                    else -> {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             activityLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                             Log.d(TAG, "onCreate: the request is sent to the user")
@@ -149,8 +137,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
                         }
                     }
                 }
-            }
-            else{
+            } else {
                 Log.d(TAG, "onCreate: the check button is not checked.")
                 cancelHourlyReminder()
                 isNotified = false
@@ -165,7 +152,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             startActivity(Intent(this, SettingsActivity::class.java))
 
         }
-        
+
     }
 
 
@@ -174,7 +161,8 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
             preferences[WATERINTAKEKEY] = waterIntake
         }
     }
-    private fun loadDataFromDataStore(){
+
+    private fun loadDataFromDataStore() {
         val waterIntakeFlow: Flow<Int> = dataStore.data
             .map { preferences ->
                 preferences[WATERINTAKEKEY] ?: 0
@@ -226,14 +214,14 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         binding.tvWaterIntake.text = "$waterIntake / ${waterGoal} ml"
     }
 
-    private fun updateNotificationCheck(){
+    private fun updateNotificationCheck() {
         binding.btnNotify.isChecked = isNotified
     }
 
-    private suspend fun saveNotificationState(){
+    private suspend fun saveNotificationState() {
         dataStore.edit { preferences ->
             preferences[ISNOTIFIEDKEY] = isNotified
-            Log.d(TAG, "saveDataToDataStore: \n isNotified -> ${ preferences[ISNOTIFIEDKEY]}")
+            Log.d(TAG, "saveDataToDataStore: \n isNotified -> ${preferences[ISNOTIFIEDKEY]}")
         }
     }
 
@@ -279,7 +267,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
 
     private fun checkAndAnimateGoal() {
-        if (waterIntake >= waterGoal ) {
+        if (waterIntake >= waterGoal) {
             val animationView = findViewById<LottieAnimationView>(R.id.animationView)
 
             // Play animation
@@ -290,9 +278,9 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         }
     }
 
-    private suspend fun resetTotal(){
+    private suspend fun resetTotal() {
         Log.d("TAG", "resetTotal: the value returned from the checkIsToday is ${checkIsToday()}")
-        if (!checkIsToday()){
+        if (!checkIsToday()) {
             Log.d("TAG", "resetTotal: the value is not false")
             dataStore.edit { preferences ->
                 preferences[WATERINTAKEKEY] = 0
@@ -301,6 +289,7 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
 
 
     }
+
     private fun checkIsToday(): Boolean {
         val currentDate = getCurrentDate()
         Log.d("TAG", "checkIsToday: current date is $currentDate")
@@ -309,15 +298,15 @@ class MainActivity : AppCompatActivity() , CoroutineScope by MainScope(){
         Log.d("TAG", "checkIsToday: last logged date from shared preferences is $lastDate")
 
         // compare between two dates
-        if (currentDate != lastDate){
+        if (currentDate != lastDate) {
             return false
-        }else{
+        } else {
             return true
         }
 
     }
 
-    private fun getCurrentDate():String?{
+    private fun getCurrentDate(): String? {
         val current = LocalDateTime.now()
 
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
