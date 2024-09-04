@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="500dp" android:viewportHeight="550" android:viewportWidth="550" android:width="500dp">
+      
+    <path android:fillColor="@color/md_theme_inversePrimary" android:pathData="M18.8,188h377.5l-1,196c1,6.1 4.9,34.8 -14.1,60.6c-11.8,16.1 -27,23.4 -34.2,26.3c-88.2,0 -176.5,0 -264.7,0c-7.1,-0.2 -20.7,-1.6 -34,-10.4c-28,-18.5 -29.4,-52.8 -29.5,-56.7C18.8,332 18.8,260 18.8,188z"/>
+      
+    <path android:fillColor="#00000000" android:pathData="M18.8,180.6c0,-50.8 0,-76.3 15.8,-92.1s41.2,-15.8 92.1,-15.8h161.8c50.9,0 76.3,0 92.1,15.8c15.8,15.8 15.8,41.3 15.8,92.1v134.8c0,76.3 0,114.4 -23.7,138.1s-61.8,23.7 -138.1,23.7h-53.9c-76.3,0 -114.4,0 -138.1,-23.7s-23.7,-61.8 -23.7,-138.1L18.8,180.6L18.8,180.6z" android:strokeColor="@color/md_theme_primary_highContrast" android:strokeWidth="20"/>
+      
+    <path android:fillColor="#00000000" android:pathData="M396.3,342.4h27c59.6,0 107.9,-48.3 107.9,-107.9s-48.3,-107.9 -107.9,-107.9h-27" android:strokeColor="@color/md_theme_primary_highContrast" android:strokeWidth="20"/>
+      
+    <path android:fillColor="#00000000" android:pathData="M396.3,186H18.8" android:strokeColor="@color/md_theme_primary_highContrast" android:strokeWidth="20"/>
+    
+</vector>

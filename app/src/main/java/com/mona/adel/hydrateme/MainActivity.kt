@@ -2,11 +2,15 @@ package com.mona.adel.hydrateme
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.Dialog
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -21,6 +25,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import com.airbnb.lottie.LottieAnimationView
 import com.mona.adel.hydrateme.databinding.ActivityMainBinding
+import com.mona.adel.hydrateme.databinding.CupOptionsDialogBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
@@ -41,9 +46,13 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
     private val TAG = "MainActivity"
 
+    private lateinit var cupOptionsDialog: Dialog
+
     private var waterIntake = 0
     private var waterGoal = 3200
     private var isNotified = false
+    private var drinkCupSize = 250
+    private var drinkCupSizeIcon = R.drawable.medium_cup
 
     val WATERINTAKEKEY = intPreferencesKey("water_intake")
     val WATERGOALKEY = intPreferencesKey("water_goal")
@@ -54,17 +63,26 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     private var isDarkTheme = false
     private val LAST_LOGGED_DATE = "last_logged_date"
 
+    private val DRINKCUPSIZE = "drink_cup_size"
+    private val DRINKCUPSIZEICON = "drink_cup_icon"
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         // Load saved theme preference
         sharedPreferences = getSharedPreferences("AppModes", MODE_PRIVATE)
         isDarkTheme = sharedPreferences.getBoolean(IS_DARK_THEME_KEY, false)
+        drinkCupSize = sharedPreferences.getInt(DRINKCUPSIZE, 250)
+        drinkCupSizeIcon = sharedPreferences.getInt(DRINKCUPSIZEICON, R.drawable.medium_cup)
 
         sharedPreferences.edit().putString(LAST_LOGGED_DATE, getCurrentDate()).apply()
+
+        setCupSizeOnButton()
 
         if (isDarkTheme) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -72,6 +90,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         } else {
             Log.d(TAG, "onCreate: it is a light mode")
         }
+
+        cupOptionsDialog = Dialog(this)
 
         // load Data from dataStore
         loadDataFromDataStore()
@@ -99,8 +119,11 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             }
 
 
+
         binding.btnAddWater.setOnClickListener {
-            waterIntake += 250 // Assuming a 250ml cup
+            val size = extractNumberFromText(binding.btnCupSize.text.toString())
+            Log.d("TAG", "onCreate: cup size is ${size}")
+            waterIntake += size!!
             updateProgress()
             checkAndAnimateGoal()
             launch {
@@ -110,7 +133,8 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         }
 
         binding.btnRemoveWater.setOnClickListener {
-            waterIntake -= 250
+            val size = extractNumberFromText(binding.btnCupSize.text.toString())
+            waterIntake -= size!!
             updateProgress()
             launch {
                 saveDataToDataStore()
@@ -148,8 +172,9 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         }
 
         binding.btnNotify.setOnClickListener {
-            if (binding.btnNotify.isChecked){
-                Toast.makeText(this, "You will receive an hourly reminder.", Toast.LENGTH_SHORT).show()
+            if (binding.btnNotify.isChecked) {
+                Toast.makeText(this, "You will receive an hourly reminder.", Toast.LENGTH_SHORT)
+                    .show()
             }
         }
 
@@ -158,14 +183,113 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
         }
 
+        binding.btnCupSize.setOnClickListener {
+            openCupSizesOptionDialog()
+            cupOptionsDialog.show()
+        }
+
     }
 
+    private fun openCupSizesOptionDialog() {
+        val dialogViewBinding = CupOptionsDialogBinding.inflate(layoutInflater)
+
+        // Set the dialog view and properties
+        cupOptionsDialog.setContentView(dialogViewBinding.root)
+        cupOptionsDialog.setCancelable(true)
+        cupOptionsDialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+
+        dialogViewBinding.tvLargeCup.setOnClickListener {
+            drinkCupSize = 350
+            drinkCupSizeIcon = R.drawable.large_cup
+            saveCupSizeToSharedPreference()
+
+            binding.btnCupSize.text = drinkCupSize.toString() + " ml"
+            binding.btnCupSize.icon = getDrawable(R.drawable.large_cup)
+            cupOptionsDialog.dismiss()
+        }
+
+        dialogViewBinding.tvMediumCup.setOnClickListener {
+            drinkCupSize = 250
+            drinkCupSizeIcon = R.drawable.medium_cup
+            saveCupSizeToSharedPreference()
+
+            binding.btnCupSize.text = drinkCupSize.toString() + "ml"
+            binding.btnCupSize.icon = getDrawable(R.drawable.medium_cup)
+            cupOptionsDialog.dismiss()
+        }
+
+        dialogViewBinding.tvSmallCup.setOnClickListener {
+            drinkCupSize = 150
+            drinkCupSizeIcon = R.drawable.small_cup
+            saveCupSizeToSharedPreference()
+
+            binding.btnCupSize.text = drinkCupSize.toString() + " ml"
+            binding.btnCupSize.icon = getDrawable(R.drawable.small_cup)
+            cupOptionsDialog.dismiss()
+        }
+
+        dialogViewBinding.imgLargeCup.setOnClickListener {
+            drinkCupSize = 350
+            drinkCupSizeIcon = R.drawable.large_cup
+            saveCupSizeToSharedPreference()
+
+            binding.btnCupSize.text = drinkCupSize.toString() + " ml"
+            binding.btnCupSize.icon = getDrawable(R.drawable.large_cup)
+            cupOptionsDialog.dismiss()
+        }
+
+        dialogViewBinding.imgMediumCup.setOnClickListener {
+            drinkCupSize = 250
+            drinkCupSizeIcon = R.drawable.medium_cup
+            saveCupSizeToSharedPreference()
+
+            binding.btnCupSize.text = drinkCupSize.toString() + " ml"
+            binding.btnCupSize.icon = getDrawable(R.drawable.medium_cup)
+            cupOptionsDialog.dismiss()
+        }
+
+        dialogViewBinding.imgSmallCup.setOnClickListener {
+            drinkCupSize = 150
+            drinkCupSizeIcon = R.drawable.small_cup
+            saveCupSizeToSharedPreference()
+
+            binding.btnCupSize.text = drinkCupSize.toString() + " ml"
+            binding.btnCupSize.icon = getDrawable(R.drawable.small_cup)
+            cupOptionsDialog.dismiss()
+        }
+    }
+
+
+    private fun saveCupSizeToSharedPreference() {
+        sharedPreferences.edit().putInt(DRINKCUPSIZE, drinkCupSize).apply()
+        sharedPreferences.edit().putInt(DRINKCUPSIZEICON, drinkCupSizeIcon).apply()
+    }
+
+    private fun setCupSizeOnButton() {
+        binding.btnCupSize.text = drinkCupSize.toString() + " ml"
+
+        try {
+            binding.btnCupSize.icon = getDrawable(drinkCupSizeIcon)
+        } catch (e: Exception) {
+            Log.d(TAG, "setCupSizeOnButton: icon id is not found")
+        }
+    }
+
+
+    private fun extractNumberFromText(buttonText: String): Int? {
+        val regex = Regex("\\d+")
+
+        val match = regex.find(buttonText)
+        return match?.value?.toInt()
+    }
 
     private suspend fun saveDataToDataStore() {
         dataStore.edit { preferences ->
             preferences[WATERINTAKEKEY] = waterIntake
         }
     }
+
 
     private fun loadDataFromDataStore() {
         val waterIntakeFlow: Flow<Int> = dataStore.data
