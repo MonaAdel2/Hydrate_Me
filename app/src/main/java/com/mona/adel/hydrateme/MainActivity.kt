@@ -73,14 +73,19 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        launch {
+            resetTotal()
+        }
+
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         // Load saved theme preference
         sharedPreferences = getSharedPreferences("AppModes", MODE_PRIVATE)
+
         isDarkTheme = sharedPreferences.getBoolean(IS_DARK_THEME_KEY, false)
+
         drinkCupSize = sharedPreferences.getInt(DRINKCUPSIZE, 250)
         drinkCupSizeIcon = sharedPreferences.getInt(DRINKCUPSIZEICON, R.drawable.medium_cup)
 
-        sharedPreferences.edit().putString(LAST_LOGGED_DATE, getCurrentDate()).apply()
 
         setCupSizeOnButton()
 
@@ -119,6 +124,7 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
             }
 
 
+//        sharedPreferences.edit().putString(LAST_LOGGED_DATE, getCurrentDate()).apply()
 
         binding.btnAddWater.setOnClickListener {
             val size = extractNumberFromText(binding.btnCupSize.text.toString())
@@ -134,11 +140,20 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
         binding.btnRemoveWater.setOnClickListener {
             val size = extractNumberFromText(binding.btnCupSize.text.toString())
-            waterIntake -= size!!
-            updateProgress()
-            launch {
-                saveDataToDataStore()
+
+            // Check if the current water intake is greater than or equal to the size of the cup
+            if (size != null && waterIntake >= size) {
+                waterIntake -= size
+                updateProgress()
+
+                launch {
+                    saveDataToDataStore()
+                }
+            } else {
+                Toast.makeText(this, "You cannot decrease below 0 ml!", Toast.LENGTH_SHORT).show()
             }
+
+
         }
 
         binding.btnNotify.setOnCheckedChangeListener { buttonView, isChecked ->
@@ -410,28 +425,29 @@ class MainActivity : AppCompatActivity(), CoroutineScope by MainScope() {
     private suspend fun resetTotal() {
         Log.d("TAG", "resetTotal: the value returned from the checkIsToday is ${checkIsToday()}")
         if (!checkIsToday()) {
-            Log.d("TAG", "resetTotal: the value is not false")
+            Log.d("reset", "resetTotal: the value is not false")
             dataStore.edit { preferences ->
                 preferences[WATERINTAKEKEY] = 0
             }
+            // Update progress to reflect the reset state
+            waterIntake = 0
+            updateProgress()
+            // After resetting, update the last logged date
+            sharedPreferences.edit().putString(LAST_LOGGED_DATE, getCurrentDate()).apply()
+        }else{
+            Log.d("reset", "resetTotal: execute else ")
         }
-
-
     }
 
     private fun checkIsToday(): Boolean {
         val currentDate = getCurrentDate()
-        Log.d("TAG", "checkIsToday: current date is $currentDate")
+        Log.d("reset", "checkIsToday: current date is $currentDate")
         // get the last logged date
         val lastDate = sharedPreferences.getString(LAST_LOGGED_DATE, "")
-        Log.d("TAG", "checkIsToday: last logged date from shared preferences is $lastDate")
+        Log.d("reset", "checkIsToday: last logged date from shared preferences is $lastDate")
 
         // compare between two dates
-        if (currentDate != lastDate) {
-            return false
-        } else {
-            return true
-        }
+        return currentDate == lastDate
 
     }
 
