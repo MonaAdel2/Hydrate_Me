@@ -2,6 +2,7 @@ package com.mona.adel.hydrateme
 
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -36,6 +37,8 @@ class SettingsActivity : AppCompatActivity(), CoroutineScope by MainScope() {
 
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         // Load saved theme preference
         sharedPreferences = getSharedPreferences("AppModes", MODE_PRIVATE)
